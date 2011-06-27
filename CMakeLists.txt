@@ -77,14 +77,31 @@ CHECK_TYPE_SIZE("unsigned long long"    UNSIGNED_LONG_LONG)
 #
 # (Note: CMakeSetup displays these in alphabetical order, regardless of
 # the order we use here)
+SET( PCRE_OPTIONS_DEFAULT_ON PCRE_BUILD_PCRECPP PCRE_BUILD_TESTS PCRE_BUILD_PCREGREP PCRE_SHOW_REPORT )
+SET( PCRE_OPTIONS_DEFAULT_OFF PCRE_BUILD_SHARED_LIBS PCRE_SUPPORT_BSR_ANYCRLF PCRE_SUPPORT_UTF8 PCRE_SUPPORT_UNICODE_PROPERTIES PCRE_NO_RECURSE  PCRE_EBCDIC)
+FOREACH( PCRE_OPTION ${PCRE_OPTIONS_DEFAULT_ON} ${PCRE_OPTIONS_DEFAULT_OFF} )
+	IF( NOT DEFINED ${PCRE_OPTION} )
+		LIST( FIND PCRE_OPTIONS_DEFAULT_ON ${PCRE_OPTION} IS_DEFAULT_ON )
+		IF( ${IS_DEFAULT_ON} GREATER -1 )
+			SET( ${PCRE_OPTION} ON )
+		ENDIF( ${IS_DEFAULT_ON} GREATER -1 )
+		LIST( FIND PCRE_OPTIONS_DEFAULT_OFF ${PCRE_OPTION} IS_DEFAULT_OFF )
+		IF( ${IS_DEFAULT_OFF} GREATER -1 )
+			SET( ${PCRE_OPTION} OFF )
+		ENDIF( ${IS_DEFAULT_OFF} GREATER -1 )
+	ENDIF( NOT DEFINED ${PCRE_OPTION} )
+ENDFOREACH( PCRE_OPTION ${PCRE_OPTIONS} )
 
-SET(BUILD_SHARED_LIBS OFF CACHE BOOL
-    "Build shared libraries instead of static ones.")
-
-OPTION(PCRE_BUILD_PCRECPP "Build the PCRE C++ library (pcrecpp)." ON)
-
-SET(PCRE_EBCDIC OFF CACHE BOOL
-    "Use EBCDIC coding instead of ASCII. (This is rarely used outside of mainframe systems)")
+OPTION( PCRE_BUILD_SHARED_LIBS "Build shared libraries instead of static ones." ${PCRE_BUILD_SHARED_LIBS} )
+OPTION( PCRE_BUILD_PCRECPP "Build the PCRE C++ library (pcrecpp)." ${PCRE_BUILD_PCRECPP} )
+OPTION( PCRE_EBCDIC "Use EBCDIC coding instead of ASCII. (This is rarely used outside of mainframe systems)" ${PCRE_EBCDIC} )
+OPTION( PCRE_NO_RECURSE "If ON, then don't use stack recursion when matching. See NO_RECURSE in config.h.in for details." ${PCRE_NO_RECURSE} )
+OPTION( PCRE_SUPPORT_UNICODE_PROPERTIES "Enable support for Unicode properties. (If set, UTF-8 support will be enabled as well)" ${PCRE_SUPPORT_UNICODE_PROPERTIES} )
+OPTION( PCRE_SUPPORT_UTF8 "Enable support for the Unicode UTF-8 encoding." ${PCRE_SUPPORT_UTF8} )
+OPTION( PCRE_SUPPORT_BSR_ANYCRLF "ON=Backslash-R matches only LF CR and CRLF, OFF=Backslash-R matches all Unicode Linebreaks" ${PCRE_SUPPORT_BSR_ANYCRLF} )
+OPTION( PCRE_SHOW_REPORT    "Show the final configuration report" ${PCRE_SHOW_REPORT} )
+OPTION( PCRE_BUILD_PCREGREP "Build pcregrep" ${PCRE_BUILD_PCREGREP} )
+OPTION( PCRE_BUILD_TESTS    "Build the tests" ${PCRE_BUILD_TESTS} )
 
 SET(PCRE_LINK_SIZE "2" CACHE STRING
     "Internal link size (2, 3 or 4 allowed). See LINK_SIZE in config.h.in for details.")
@@ -98,24 +115,8 @@ SET(PCRE_MATCH_LIMIT_RECURSION "MATCH_LIMIT" CACHE STRING
 SET(PCRE_NEWLINE "LF" CACHE STRING
     "What to recognize as a newline (one of CR, LF, CRLF, ANY, ANYCRLF).")
 
-SET(PCRE_NO_RECURSE OFF CACHE BOOL
-    "If ON, then don't use stack recursion when matching. See NO_RECURSE in config.h.in for details.")
-
 SET(PCRE_POSIX_MALLOC_THRESHOLD "10" CACHE STRING
     "Threshold for malloc() usage. See POSIX_MALLOC_THRESHOLD in config.h.in for details.")
-
-SET(PCRE_SUPPORT_UNICODE_PROPERTIES OFF CACHE BOOL
-    "Enable support for Unicode properties. (If set, UTF-8 support will be enabled as well)")
-
-SET(PCRE_SUPPORT_UTF8 OFF CACHE BOOL
-    "Enable support for the Unicode UTF-8 encoding.")
-
-SET(PCRE_SUPPORT_BSR_ANYCRLF OFF CACHE BOOL
-    "ON=Backslash-R matches only LF CR and CRLF, OFF=Backslash-R matches all Unicode Linebreaks")
-
-OPTION(PCRE_SHOW_REPORT    "Show the final configuration report" ON)
-OPTION(PCRE_BUILD_PCREGREP "Build pcregrep" ON)
-OPTION(PCRE_BUILD_TESTS    "Build the tests" ON)
 
 IF (PCRE_BUILD_TESTS)
   IF (NOT PCRE_BUILD_PCREGREP)
@@ -182,9 +183,9 @@ IF(HAVE_UNSIGNED_LONG_LONG)
         SET(pcre_have_ulong_long 1)
 ENDIF(HAVE_UNSIGNED_LONG_LONG)
 
-IF(NOT BUILD_SHARED_LIBS)
+IF(NOT PCRE_BUILD_SHARED_LIBS)
         SET(PCRE_STATIC 1)
-ENDIF(NOT BUILD_SHARED_LIBS)
+ENDIF(NOT PCRE_BUILD_SHARED_LIBS)
 
 IF(PCRE_SUPPORT_BSR_ANYCRLF)
         SET(BSR_ANYCRLF 1)
@@ -402,10 +403,10 @@ ENDIF(PCRE_BUILD_PCRECPP)
 # automatically, and it gave trouble in some environments anyway.
 # ADD_EXECUTABLE(pcredemo pcredemo.c)
 # TARGET_LINK_LIBRARIES(pcredemo pcreposix)
-# IF(NOT BUILD_SHARED_LIBS)
+# IF(NOT PCRE_BUILD_SHARED_LIBS)
 #     # make sure to not use declspec(dllimport) in static mode on windows
 #         SET_TARGET_PROPERTIES(pcredemo PROPERTIES COMPILE_FLAGS "-DPCRE_STATIC")
-# ENDIF(NOT BUILD_SHARED_LIBS)
+# ENDIF(NOT PCRE_BUILD_SHARED_LIBS)
 
 IF(PCRE_BUILD_PCREGREP)
   ADD_EXECUTABLE(pcregrep pcregrep.c)
@@ -483,10 +484,26 @@ ENDIF(PCRE_BUILD_TESTS)
 # Installation
 SET(CMAKE_INSTALL_ALWAYS 1)
 
-INSTALL(TARGETS ${targets}
+INSTALL(TARGETS ${targets} EXPORT pcre-targets
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
+ 
+INSTALL( EXPORT pcre-targets 
+	DESTINATION lib/cmake )
+
+SET( CONFIG_FILE_CONTENTS 
+	"\nGET_FILENAME_COMPONENT( SELF_DIR \"\${CMAKE_CURRENT_LIST_FILE}\" PATH )"
+	"\nINCLUDE( \${SELF_DIR}/pcre-targets.cmake )"
+	"\nGET_FILENAME_COMPONENT( PCRE_INCLUDE_DIRS \"\${SELF_DIR}/../../include\" ABSOLUTE )"
+	"\nSET( PCRE_LIBRARIES pcre pcreposix )"
+	"\nSET( PCRE_FOUND TRUE )" 
+	"\n\n" )
+
+SET( CONFIG_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/pcre-config.cmake )
+FILE( WRITE ${CONFIG_FILE_NAME} ${CONFIG_FILE_CONTENTS} )
+INSTALL( FILES ${CONFIG_FILE_NAME} DESTINATION lib/cmake )
+
 
 INSTALL(FILES ${PCRE_HEADERS} ${PCREPOSIX_HEADERS} DESTINATION include)
 
@@ -513,11 +530,11 @@ INSTALL(FILES ${man3} DESTINATION man/man3)
 INSTALL(FILES ${html} DESTINATION share/doc/pcre/html)
 
 # help, only for nice output
-IF(BUILD_SHARED_LIBS)
+IF(PCRE_BUILD_SHARED_LIBS)
   SET(BUILD_STATIC_LIBS OFF)
-ELSE(BUILD_SHARED_LIBS)
+ELSE(PCRE_BUILD_SHARED_LIBS)
   SET(BUILD_STATIC_LIBS ON)
-ENDIF(BUILD_SHARED_LIBS)
+ENDIF(PCRE_BUILD_SHARED_LIBS)
 
 IF(PCRE_SHOW_REPORT)
   STRING(TOUPPER "${CMAKE_BUILD_TYPE}" buildtype)
@@ -541,7 +558,7 @@ IF(PCRE_SHOW_REPORT)
   MESSAGE(STATUS "  Enable UTF-8 support ............ : ${PCRE_SUPPORT_UNICODE_PROPERTIES}")
   MESSAGE(STATUS "  Unicode properties .............. : ${PCRE_SUPPORT_UNICODE_PROPERTIES}")
   MESSAGE(STATUS "  Newline char/sequence ........... : ${PCRE_NEWLINE}")
-  MESSAGE(STATUS "  \\R matches only ANYCRLF ......... : ${PCRE_SUPPORT_BSR_ANYCRLF}")
+  MESSAGE(STATUS "  \\R matches only ANYCRLF ........ : ${PCRE_SUPPORT_BSR_ANYCRLF}")
   MESSAGE(STATUS "  EBCDIC coding ................... : ${PCRE_EBCDIC}")
   MESSAGE(STATUS "  Rebuild char tables ............. : ${PCRE_REBUILD_CHARTABLES}")
   MESSAGE(STATUS "  No stack recursion .............. : ${PCRE_NO_RECURSE}")
@@ -549,7 +566,7 @@ IF(PCRE_SHOW_REPORT)
   MESSAGE(STATUS "  Internal link size .............. : ${PCRE_LINK_SIZE}")
   MESSAGE(STATUS "  Match limit ..................... : ${PCRE_MATCH_LIMIT}")
   MESSAGE(STATUS "  Match limit recursion ........... : ${PCRE_MATCH_LIMIT_RECURSION}")
-  MESSAGE(STATUS "  Build shared libs ............... : ${BUILD_SHARED_LIBS}")
+  MESSAGE(STATUS "  Build shared libs ............... : ${PCRE_BUILD_SHARED_LIBS}")
   MESSAGE(STATUS "  Build static libs ............... : ${BUILD_STATIC_LIBS}")
   MESSAGE(STATUS "  Build pcregrep .................. : ${PCRE_BUILD_PCREGREP}")
   MESSAGE(STATUS "  Build tests (implies pcretest) .. : ${PCRE_BUILD_TESTS}")
